@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GOOD DAY E-BOOK V65 PERSONAL</title>
+    <title>GOOD DAY E-BOOK V70 FINAL</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
@@ -35,6 +35,7 @@
             <div style="color: var(--gold); font-size: 16px;">COUNT: <span id="cnt">0</span></div>
             <div style="color: #fff; font-size: 16px;"><span id="month-label">TOTAL</span>: ₹ <span id="tot">0</span></div>
             <div style="display: flex; gap: 5px;">
+                <div onclick="deleteAll()" style="background:#ff1744; color:#fff; padding:2px 8px; border-radius:6px; font-size:11px; cursor:pointer; border: 1px solid #fff;">DEL ALL</div>
                 <div onclick="exportData()" style="background:#fff; color:#000; padding:2px 8px; border-radius:6px; font-size:11px; cursor:pointer; border: 1px solid #000;">EXPORT</div>
                 <label style="background:#fff; color:#000; padding:2px 8px; border-radius:6px; font-size:11px; cursor:pointer; border: 1px solid #000;">IMPORT<input type="file" id="impFile" hidden onchange="importData()"></label>
                 <div onclick="downloadPDF()" style="background:var(--gold); color:#000; padding:2px 8px; border-radius:6px; font-size:11px; cursor:pointer; border: 1px solid #000;">PDF</div>
@@ -48,11 +49,12 @@
             <div style="flex:1">
                 <span class="label">CAT</span>
                 <select id="c-in">
-                    <option value="BUSINESS">BUSINESS</option>
-                    <option value="PERSONAL">PERSONAL</option>
+                    <option value="TICKET">TICKET</option>
+                    <option value="FINANCE">FINANCE</option>
+                    <option value="RO">RO</option>
                 </select>
             </div>
-            <div style="flex:2"><span class="label">DESCRIPTION</span><input type="text" id="ds-in" placeholder="Type details here..."></div>
+            <div style="flex:2"><span class="label">DESCRIPTION</span><input type="text" id="ds-in" placeholder="Type details..."></div>
             <div style="flex:1"><span class="label">AMOUNT</span><input type="number" id="a-in" placeholder="₹"></div>
         </div>
         <div class="row" style="margin-bottom: 0;">
@@ -65,12 +67,13 @@
         <div class="row" style="align-items: flex-end;">
             <div style="flex:1"><span class="label">FROM</span><input type="date" id="sd"></div>
             <div style="flex:1"><span class="label">TO</span><input type="date" id="ed"></div>
-            <div style="flex:1.2"><input type="tel" id="sm" placeholder="Search Mobile" style="font-size: 14px !important;"></div>
+            <div style="flex:1.2"><input type="tel" id="sm" placeholder="Search Mobile"></div>
             <div style="flex:1">
-                <select id="sc" style="font-size: 14px !important;">
+                <select id="sc">
                     <option value="">All Category</option>
-                    <option value="BUSINESS">BUSINESS</option>
-                    <option value="PERSONAL">PERSONAL</option>
+                    <option value="TICKET">TICKET</option>
+                    <option value="FINANCE">FINANCE</option>
+                    <option value="RO">RO</option>
                 </select>
             </div>
             <button onclick="draw(true)" style="flex:0.3; background:#000; color:#fff; border:1px solid #fff; border-radius:8px; padding: 10px; cursor:pointer;">🔍</button>
@@ -82,7 +85,6 @@
     </div>
 </div>
 <script>
-    /* பழைய டேட்டா வர dbName-ஐ உங்கள் பழைய பெயராக மாற்றவும் (V55/V60) */
     let dbName = 'GD_FINAL_V55'; 
     let db = JSON.parse(localStorage.getItem(dbName)) || [];
     let cur = '';
@@ -118,9 +120,18 @@
             const r = document.createElement('div');
             r.className = 't-row';
             r.innerHTML = `<div>${i.d.split('-').reverse().join('-').substring(0,5)}</div><div>${i.m}</div><div>${i.c}</div><div style="font-size:13px">${i.ds}</div><div style="color:${i.t==='CR'?'#00c853':'#ff1744'}; font-weight:bold;">${i.a}</div>`;
-            r.onclick = () => { if(confirm("Delete?")) { db = db.filter(x=>x.id!==i.id); localStorage.setItem(dbName,JSON.stringify(db)); draw(); } };
+            r.onclick = () => { if(confirm("Delete this entry?")) { db = db.filter(x=>x.id!==i.id); localStorage.setItem(dbName,JSON.stringify(db)); draw(); } };
             box.appendChild(r);
         });
+    }
+    function deleteAll() {
+        let pass = prompt("Enter Password to Delete All Data (1234):");
+        if(pass === "1234") {
+            if(confirm("Are you sure? This will delete EVERYTHING!")) {
+                db = []; localStorage.setItem(dbName, JSON.stringify(db)); draw();
+                alert("All data deleted!");
+            }
+        } else { alert("Wrong Password!"); }
     }
     function reset() { document.getElementById('a-in').value=''; document.getElementById('ds-in').value=''; document.getElementById('m-in').value=''; cur=''; document.getElementById('dr').style.opacity='0.5'; document.getElementById('cr').style.opacity='0.5'; }
     function exportData() {
@@ -137,17 +148,32 @@
         reader.onload = function(e) {
             try {
                 const imported = JSON.parse(e.target.result);
-                if(confirm("Import " + imported.length + " entries?")) {
-                    db = imported;
+                if(confirm("Import " + imported.length + " entries? (Already existing data will NOT be deleted)")) {
+                    db = db.concat(imported); 
+                    db = Array.from(new Map(db.map(item => [item.id, item])).values());
+                    db.sort((a, b) => new Date(b.d) - new Date(a.d));
                     localStorage.setItem(dbName, JSON.stringify(db));
-                    draw();
-                    alert("Data Restored!");
+                    draw(); alert("Data Merged Successfully!");
                 }
             } catch(err) { alert("Invalid Backup File!"); }
         };
         reader.readAsText(file);
     }
-    function downloadPDF() { const { jsPDF } = window.jspdf; const doc = new jsPDF(); doc.autoTable({ head:[['Date', 'Mobile', 'Cat', 'Description', 'Amount']], body: db.map(e=>[e.d, e.m, e.c, e.ds, (e.t==='CR'?'+':'-')+e.a]), theme: 'grid' }); doc.save("Report.pdf"); }
+    function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let currentTotal = db.reduce((sum, i) => sum + (i.t === 'CR' ? i.a : -i.a), 0);
+        doc.setFontSize(18); doc.text("GOOD DAY E-BOOK REPORT", 14, 20);
+        doc.autoTable({
+            startY: 30,
+            head: [['Date', 'Mobile', 'Category', 'Description', 'Amount']],
+            body: db.map(e => [e.d, e.m, e.c, e.ds, (e.t === 'CR' ? '+' : '-') + e.a]),
+            theme: 'grid',
+            foot: [['', '', '', 'NET TOTAL BALANCE', 'Rs. ' + currentTotal.toLocaleString()]],
+            footStyles: { fillColor: [255, 215, 0], textColor: [0, 0, 0], fontStyle: 'bold' }
+        });
+        doc.save("Report.pdf");
+    }
     window.onload = () => { db.sort((a, b) => new Date(b.d) - new Date(a.d)); draw(); };
 </script>
 </body>
